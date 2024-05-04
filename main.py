@@ -23,5 +23,7 @@ if __name__ == '__main__':
     while True:
         conn.request("GET", "/ip")
         r = conn.getresponse().read().decode()
-        msg = send_message(token=TELEGRAM_TOKEN, chat_id=TELEGRAM_CHAT_ID, text=f'{r}\n{datetime.now()}')
+        msg = f'{r}\n{datetime.now()}'
+        send_message(token=TELEGRAM_TOKEN, chat_id=TELEGRAM_CHAT_ID, text=msg)
+        print(msg)
         time.sleep(DELAY)
