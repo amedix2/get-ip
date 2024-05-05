@@ -19,10 +19,11 @@ if __name__ == '__main__':
     TELEGRAM_CHAT_ID = int(os.getenv('TELEGRAM_CHAT_ID'))
     DELAY = int(os.getenv('DELAY'))
 
-    conn = http.client.HTTPConnection("ifconfig.me")
     while True:
+        conn = http.client.HTTPConnection("ifconfig.me")
         conn.request("GET", "/ip")
         r = conn.getresponse().read().decode()
+        conn.close()
         msg = f'{r}\n{datetime.now()}'
         send_message(token=TELEGRAM_TOKEN, chat_id=TELEGRAM_CHAT_ID, text=msg)
         print(msg)
