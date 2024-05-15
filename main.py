@@ -1,16 +1,22 @@
 import os
+import logging
 import http.client
-import requests
-import time
 from datetime import datetime
 from dotenv import load_dotenv
 
+from aiogram import Bot, Dispatcher, F, types
+from aiogram.enums import ParseMode
+from aiogram.filters import Command, CommandStart
+from aiogram.types import Message
+from aiogram.utils.markdown import hbold
 
-def send_message(token, chat_id, text):
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
-    response = requests.post(url, data=data)
-    return response.json()
+
+def get_ip() -> str:
+    conn = http.client.HTTPConnection("ifconfig.me")
+    conn.request("GET", "/ip")
+    r = conn.getresponse().read().decode()
+    conn.close()
+    return r
 
 
 if __name__ == '__main__':
@@ -20,11 +26,5 @@ if __name__ == '__main__':
     DELAY = int(os.getenv('DELAY'))
 
     while True:
-        conn = http.client.HTTPConnection("ifconfig.me")
-        conn.request("GET", "/ip")
-        r = conn.getresponse().read().decode()
-        conn.close()
-        msg = f'{r}\n{datetime.now()}'
-        send_message(token=TELEGRAM_TOKEN, chat_id=TELEGRAM_CHAT_ID, text=msg)
-        print(msg)
-        time.sleep(DELAY)
+        ip = get_ip()
+        msg = f'{ip}\n{datetime.now()}'
