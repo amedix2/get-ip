@@ -1,30 +1,46 @@
+import asyncio
 import os
+import logging
 import http.client
-import requests
-import time
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
 
+from aiogram import Bot, Dispatcher, F
+from aiogram.enums import ParseMode
+from aiogram.filters import Command, CommandStart
+from aiogram.types import Message
 
-def send_message(token, chat_id, text):
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
-    response = requests.post(url, data=data)
-    return response.json()
+load_dotenv()
+ACCESS_ID = int(os.getenv("TELEGRAM_CHAT_ID"))
+BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+dp = Dispatcher()
+
+
+@dp.message(F.from_user.id == ACCESS_ID, CommandStart())
+async def start(message: Message) -> None:
+    logging.info(f'start {message.chat.id}')
+    await message.answer(f'/get_ip - get ip')
+
+
+@dp.message(F.from_user.id == ACCESS_ID, Command('get_ip'))
+async def get_ip(message: Message) -> None:
+    logging.info(f'get ip {message.chat.id}')
+    conn = http.client.HTTPConnection("ifconfig.me")
+    conn.request("GET", "/ip")
+    ip = conn.getresponse().read().decode()
+    conn.close()
+    msg = f'{ip}\n{datetime.now()}'
+    logging.info(msg)
+    await message.answer(msg)
+
+
+async def main() -> None:
+    bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+    await dp.start_polling(bot)
 
 
 if __name__ == '__main__':
-    load_dotenv()
-    TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
-    TELEGRAM_CHAT_ID = int(os.getenv('TELEGRAM_CHAT_ID'))
-    DELAY = int(os.getenv('DELAY'))
-
-    while True:
-        conn = http.client.HTTPConnection("ifconfig.me")
-        conn.request("GET", "/ip")
-        r = conn.getresponse().read().decode()
-        conn.close()
-        msg = f'{r}\n{datetime.now()}'
-        send_message(token=TELEGRAM_TOKEN, chat_id=TELEGRAM_CHAT_ID, text=msg)
-        print(msg)
-        time.sleep(DELAY)
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    asyncio.run(main())
