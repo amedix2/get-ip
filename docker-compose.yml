@@ -1,0 +1,11 @@
+services:
+  get-ip:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    pull_policy: always
+    restart: on-failure
+    container_name: get-ip
+    env_file:
+      - path: ./.env
+        required: true
