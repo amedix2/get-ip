@@ -7,5 +7,4 @@ services:
     restart: on-failure
     container_name: get-ip
     env_file:
-      - path: ./.env
-        required: true
+      - ./.env
