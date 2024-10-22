@@ -37,12 +37,12 @@ async def get_ip_command(message: Message) -> None:
     await message.answer(msg)
 
 
-async def main() -> None:
+async def main_bot() -> None:
     bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
     await dp.start_polling(bot)
 
 
-def send_message(token, chat_id, text) -> dict:
+def send_message(token: str, chat_id: int, text: str) -> dict:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     data = {"chat_id": chat_id, "text": text}
     response = requests.post(url, data=data)
@@ -57,10 +57,6 @@ def get_ip() -> str:
     return ip
 
 
-def run_tg() -> None:
-    asyncio.run(main())
-
-
 def autoupdate(curr_ip: str) -> None:
     while True:
         last_ip = curr_ip
@@ -73,10 +69,9 @@ def autoupdate(curr_ip: str) -> None:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=os.getenv('LOGGING_LEVEL'), stream=sys.stdout)
-    th1 = threading.Thread(target=run_tg)
-    th2 = threading.Thread(target=autoupdate, args=(get_ip(),))
-    th1.start()
-    th2.start()
-    th1.join()
-    th2.join()
+    logging.basicConfig(level=os.getenv('LOGGING_LEVEL', 'INFO').upper(), stream=sys.stdout)
+
+    current_ip = get_ip()
+    update_thread = threading.Thread(target=autoupdate, args=(current_ip,))
+    update_thread.start()
+    asyncio.run(main_bot())
