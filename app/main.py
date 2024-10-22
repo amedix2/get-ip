@@ -46,6 +46,7 @@ def send_message(token: str, chat_id: int, text: str) -> dict:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     data = {"chat_id": chat_id, "text": text}
     response = requests.post(url, data=data)
+    logging.info(f'sent message: {response.json()}')
     return response.json()
 
 
@@ -61,10 +62,10 @@ def autoupdate(curr_ip: str) -> None:
     while True:
         last_ip = curr_ip
         curr_ip = get_ip()
+        logging.debug(curr_ip)
         if last_ip != curr_ip:
             msg = f'{last_ip} --> {curr_ip}\n{datetime.now()}'
-            r = send_message(BOT_TOKEN, ACCESS_ID, msg)
-            logging.debug(r)
+            send_message(BOT_TOKEN, ACCESS_ID, msg)
         time.sleep(UPDATE_TIME)
 
 
