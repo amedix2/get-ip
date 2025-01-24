@@ -6,12 +6,13 @@ import sys
 from datetime import datetime
 import requests
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
+USER_FILE = "users.txt"
+
 load_dotenv()
-ACCESS_ID = int(os.getenv("TELEGRAM_CHAT_ID"))
 BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 UPDATE_TIME = int(os.getenv("UPDATE_TIME", 60))
 
@@ -22,18 +23,34 @@ logging.basicConfig(
 )
 
 
+def load_users() -> set:
+    if os.path.exists(USER_FILE):
+        with open(USER_FILE, "r") as file:
+            return set(int(line.strip()) for line in file if line.strip().isdigit())
+    return set()
+
+
+def save_users(users: set) -> None:
+    with open(USER_FILE, "w") as file:
+        file.writelines(f"{user}\n" for user in users)
+
+
+users = load_users()
+
+
 async def start(message: Message) -> None:
-    logging.debug(f'Start command received from {message.chat.id}')
-    await send_message(BOT_TOKEN, message.chat.id, f'Current IP: {await get_ip()}'
-                                                   '\n/get_ip - get current IP address')
+    if message.chat.id not in users:
+        users.add(message.chat.id)
+        save_users(users)
+        logging.info(f"New user added: {message.chat.id}")
+    await send_message( message.chat.id, f"Current IP: {await get_ip()}"
+                                                   "\n/get_ip - get current IP address")
 
 
 async def get_ip_command(message: Message) -> None:
-    logging.debug(f'Get IP command received from {message.chat.id}')
+    logging.debug(f"Get IP command received from {message.chat.id}")
     ip = await get_ip()
-    msg = f'{ip}'
-    logging.debug(f'Sending IP to user: {msg}')
-    await send_message(BOT_TOKEN, message.chat.id, msg)
+    await send_message(message.chat.id, f"Current IP: {ip}")
 
 
 async def get_ip() -> str:
@@ -57,7 +74,8 @@ async def autoupdate() -> None:
     try:
         new_conn = True
         current_ip = await get_ip()
-        await send_message(BOT_TOKEN, ACCESS_ID, f'Server started.\nCurrent IP: {current_ip}')
+        for user_id in users:
+            await send_message(user_id, f"Server started.\nCurrent IP: {current_ip}")
         while True:
             try:
                 old_conn = new_conn
@@ -70,23 +88,15 @@ async def autoupdate() -> None:
                     new_conn = True
 
                 if not old_conn and new_conn:  # Connection restored
-                    restored_message = (
-                        f'Connection restored.\nCurrent IP: {current_ip}'
-                    )
-                    logging.info(f'Connection restored: {datetime.now()}')
-                    for attempt in range(3):
-                        try:
-                            await send_message(BOT_TOKEN, ACCESS_ID, restored_message)
-                            logging.debug("Restoration message sent successfully")
-                            break
-                        except Exception as e:
-                            logging.error(f"Failed to send restoration message, attempt {attempt + 1}: {e}")
-                            await asyncio.sleep(5)
+                    logging.info(f"Connection restored: {datetime.now()}")
+                    for user_id in users:
+                        await send_message(user_id, f"Connection restored.\nCurrent IP: {current_ip}")
 
                 if current_ip != old_ip:  # IP changed
-                    msg = f'\n{old_ip} –> {current_ip}'
-                    logging.info(f'IP changed: {msg}')
-                    await send_message(BOT_TOKEN, ACCESS_ID, msg)
+                    msg = f"\n{old_ip} –> {current_ip}"
+                    logging.info(f"IP changed: {msg}")
+                    for user_id in users:
+                        await send_message(user_id, msg)
 
             except Exception as e:
                 logging.error(f"Error in autoupdate loop: {e}")
@@ -98,8 +108,8 @@ async def autoupdate() -> None:
 def create_bot_and_dispatcher() -> tuple[Bot, Dispatcher]:
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
-    dp.message.register(start, CommandStart(), F.from_user.id == ACCESS_ID)
-    dp.message.register(get_ip_command, Command('get_ip'), F.from_user.id == ACCESS_ID)
+    dp.message.register(start, CommandStart())
+    dp.message.register(get_ip_command, Command("get_ip"))
     return bot, dp
 
 
@@ -114,15 +124,15 @@ async def main_bot() -> None:
         autoupdate_task.cancel()
 
 
-async def send_message(token: str, chat_id: int, text: str) -> None:
+async def send_message(chat_id: int, text: str) -> None:
     try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         data = {"chat_id": chat_id, "text": text}
         response = requests.post(url, data=data, timeout=10)
         response.raise_for_status()
-        logging.debug(f'Message sent successfully: {response.json()}')
+        logging.debug(f"Message sent successfully to {chat_id}: {response.json()}")
     except requests.RequestException as e:
-        logging.error(f"Error sending message: {e}")
+        logging.error(f"Error sending message to {chat_id}: {e}")
 
 
 if __name__ == '__main__':
