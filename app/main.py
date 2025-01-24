@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-USER_FILE = "users.txt"
+USER_FILE = "data/users.txt"
 
 load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -24,6 +24,7 @@ logging.basicConfig(
 
 
 def load_users() -> set:
+    os.makedirs(os.path.dirname(USER_FILE), exist_ok=True)
     if os.path.exists(USER_FILE):
         with open(USER_FILE, "r") as file:
             return set(int(line.strip()) for line in file if line.strip().isdigit())
@@ -31,6 +32,7 @@ def load_users() -> set:
 
 
 def save_users(users: set) -> None:
+    os.makedirs(os.path.dirname(USER_FILE), exist_ok=True)
     with open(USER_FILE, "w") as file:
         file.writelines(f"{user}\n" for user in users)
 
