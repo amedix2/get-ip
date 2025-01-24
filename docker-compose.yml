@@ -8,3 +8,5 @@ services:
     container_name: get-ip
     env_file:
       - ./.env
+    volumes:
+      - ./data:/app/data
