@@ -1,12 +1,12 @@
+version: "3.9"
 services:
   get-ip:
     build:
       context: .
       dockerfile: Dockerfile
-    pull_policy: always
-    restart: on-failure
+    restart: always
     container_name: get-ip
     env_file:
-      - ./.env
+      - .env
     volumes:
-      - ./data:/app/data
+      - ./app:/app

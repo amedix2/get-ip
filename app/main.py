@@ -10,7 +10,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-USER_FILE = "data/users.txt"
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+USER_FILE = os.path.join(APP_DIR, "users.txt")
 
 load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -24,7 +25,6 @@ logging.basicConfig(
 
 
 def load_users() -> set:
-    os.makedirs(os.path.dirname(USER_FILE), exist_ok=True)
     if os.path.exists(USER_FILE):
         with open(USER_FILE, "r") as file:
             return set(int(line.strip()) for line in file if line.strip().isdigit())
@@ -32,7 +32,6 @@ def load_users() -> set:
 
 
 def save_users(users: set) -> None:
-    os.makedirs(os.path.dirname(USER_FILE), exist_ok=True)
     with open(USER_FILE, "w") as file:
         file.writelines(f"{user}\n" for user in users)
 
@@ -44,9 +43,9 @@ async def start(message: Message) -> None:
     if message.chat.id not in users:
         users.add(message.chat.id)
         save_users(users)
-        logging.info(f"New user added: {message.chat.id}")
-    await send_message( message.chat.id, f"Current IP: {await get_ip()}"
-                                                   "\n/get_ip - get current IP address")
+        logging.info(f"New user added: {message.chat.id} {message.from_user.username}")
+    await send_message(message.chat.id, f"Current IP: {await get_ip()}"
+                                        "\n/get_ip - get current IP address")
 
 
 async def get_ip_command(message: Message) -> None:
