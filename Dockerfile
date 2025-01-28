@@ -1,9 +1,11 @@
 FROM python:3.12-alpine
 LABEL authors="amedix"
-COPY requirements.txt .
+WORKDIR /app
 
-RUN pip3 install --user --no-cache -r requirements.txt
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-COPY app/main.py .
+COPY app/ ./
+ENV PYTHONUNBUFFERED 1
 
-ENTRYPOINT ["python3", "-u", "./main.py"]
+CMD ["python3", "-u", "main.py"]
