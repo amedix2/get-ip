@@ -3,8 +3,10 @@ import os
 import logging
 import http.client
 import sys
-from datetime import datetime
+import threading
 import requests
+from time import sleep
+from datetime import datetime
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
@@ -44,17 +46,17 @@ async def start(message: Message) -> None:
         users.add(message.chat.id)
         save_users(users)
         logging.info(f"New user added: {message.chat.id} {message.from_user.username}")
-    await send_message(message.chat.id, f"Current IP: {await get_ip()}"
-                                        "\n/get_ip - get current IP address")
+    send_message(message.chat.id, f"Current IP: {get_ip()}"
+                                  "\n/get_ip - get current IP address")
 
 
 async def get_ip_command(message: Message) -> None:
     logging.debug(f"Get IP command received from {message.chat.id}")
-    ip = await get_ip()
-    await send_message(message.chat.id, f"Current IP: {ip}")
+    ip = get_ip()
+    send_message(message.chat.id, f"Current IP: {ip}")
 
 
-async def get_ip() -> str:
+def get_ip() -> str:
     try:
         conn = http.client.HTTPConnection("ifconfig.me", timeout=5)
         conn.request("GET", "/ip")
@@ -71,17 +73,17 @@ async def get_ip() -> str:
         return "Error fetching IP"
 
 
-async def autoupdate() -> None:
+def autoupdate() -> None:
     try:
         new_conn = True
-        current_ip = await get_ip()
+        current_ip = get_ip()
         for user_id in users:
-            await send_message(user_id, f"Server started.\nCurrent IP: {current_ip}")
+            send_message(user_id, f"Server started.\nCurrent IP: {current_ip}")
         while True:
             try:
                 old_conn = new_conn
                 old_ip = current_ip
-                current_ip = await get_ip()
+                current_ip = get_ip()
                 if current_ip in ["Error fetching IP", "Unknown IP"]:
                     current_ip = old_ip
                     new_conn = False
@@ -91,17 +93,17 @@ async def autoupdate() -> None:
                 if not old_conn and new_conn:  # Connection restored
                     logging.info(f"Connection restored: {datetime.now()}")
                     for user_id in users:
-                        await send_message(user_id, f"Connection restored.\nCurrent IP: {current_ip}")
+                        send_message(user_id, f"Connection restored.\nCurrent IP: {current_ip}")
 
                 if current_ip != old_ip:  # IP changed
                     msg = f"\n{old_ip} –> {current_ip}"
                     logging.info(f"IP changed: {msg}")
                     for user_id in users:
-                        await send_message(user_id, msg)
+                        send_message(user_id, msg)
 
             except Exception as e:
                 logging.error(f"Error in autoupdate loop: {e}")
-            await asyncio.sleep(UPDATE_TIME)
+            sleep(UPDATE_TIME)
     except Exception as e:
         logging.error(f"Critical error in autoupdate: {e}")
 
@@ -116,16 +118,17 @@ def create_bot_and_dispatcher() -> tuple[Bot, Dispatcher]:
 
 async def main_bot() -> None:
     bot, dp = create_bot_and_dispatcher()
-    autoupdate_task = asyncio.create_task(autoupdate())
     try:
         await dp.start_polling(bot)
     except Exception as e:
         logging.error(f"Critical error in polling: {e}")
-    finally:
-        autoupdate_task.cancel()
 
 
-async def send_message(chat_id: int, text: str) -> None:
+def run_bot():
+    asyncio.run(main_bot())
+
+
+def send_message(chat_id: int, text: str) -> None:
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         data = {"chat_id": chat_id, "text": text}
@@ -138,6 +141,14 @@ async def send_message(chat_id: int, text: str) -> None:
 
 if __name__ == '__main__':
     try:
-        asyncio.run(main_bot())
+        current_ip = get_ip()
+        update_thread = threading.Thread(target=autoupdate, args=(current_ip,))
+        update_thread.start()
+        while True:
+            bot_thread = threading.Thread(target=run_bot, daemon=True)
+            bot_thread.start()
+            bot_thread.join()
+            logging.info("Restarting bot thread after completion.")
+
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped.")
